@@ -1,0 +1,6 @@
+{
+  "name": "Apollo",
+  "description": "A JARVIS-style central voice AI assistant for PC/laptop, powered by Gemini.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
