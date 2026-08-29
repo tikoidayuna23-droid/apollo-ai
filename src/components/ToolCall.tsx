@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ToolCallRecord } from '../storage/sessions';
-import { Calculator, Database, Search, ChevronDown, ChevronUp, Check, AlertCircle } from 'lucide-react';
+import { Calculator, Database, Search, Clock, ChevronDown, ChevronUp, Check, AlertCircle, Sparkles } from 'lucide-react';
 
 interface ToolCallProps {
   toolCall: ToolCallRecord;
@@ -13,24 +13,34 @@ export const ToolCall: React.FC<ToolCallProps> = ({ toolCall }) => {
     switch (toolCall.name) {
       case 'calculator':
         return <Calculator className="w-3.5 h-3.5 text-amber-400" />;
+      case 'time':
+        return <Clock className="w-3.5 h-3.5 text-purple-400" />;
       case 'save_memory':
         return <Database className="w-3.5 h-3.5 text-emerald-400" />;
       case 'search_memory':
         return <Search className="w-3.5 h-3.5 text-sky-400" />;
+      case 'memory':
+        return <Database className="w-3.5 h-3.5 text-cyan-400" />;
       default:
-        return <Database className="w-3.5 h-3.5 text-indigo-400" />;
+        return <Sparkles className="w-3.5 h-3.5 text-indigo-400" />;
     }
   };
 
   const formatSummary = () => {
-    if (toolCall.name === 'calculator' && toolCall.args.expression) {
+    if (toolCall.name === 'calculator' && toolCall.args?.expression) {
       return `Calc: ${toolCall.args.expression}`;
     }
-    if (toolCall.name === 'save_memory' && toolCall.args.content) {
+    if (toolCall.name === 'time') {
+      return 'Time: Local Chrono';
+    }
+    if (toolCall.name === 'save_memory' && toolCall.args?.content) {
       return `Memory: "${String(toolCall.args.content).slice(0, 24)}..."`;
     }
-    if (toolCall.name === 'search_memory' && toolCall.args.query) {
+    if (toolCall.name === 'search_memory' && toolCall.args?.query) {
       return `Search: "${toolCall.args.query}"`;
+    }
+    if (toolCall.name === 'memory') {
+      return `Memory: ${toolCall.args?.action || 'Access'}`;
     }
     return toolCall.name.replace(/_/g, ' ');
   };

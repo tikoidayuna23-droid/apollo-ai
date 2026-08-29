@@ -4,8 +4,10 @@ import { VoiceSettings, VoiceProfilePreset } from '../voice/types';
 import { ProviderManager } from '../ai/provider';
 import { SessionStorage } from '../storage/sessions';
 import { ApolloMemory } from '../memory/memory';
+import { SkillRegistry } from '../../skills/registry';
+import { Skill } from '../../skills/types';
 import { db } from '../storage/database';
-import { Settings as SettingsIcon, Volume2, Cpu, Sliders, Trash2, X, RefreshCw, Check, AlertCircle, Bot, Sparkles, Mic } from 'lucide-react';
+import { Settings as SettingsIcon, Volume2, Cpu, Sliders, Trash2, X, RefreshCw, Check, AlertCircle, Bot, Sparkles, Mic, ShieldCheck, ShieldAlert, Clock, Calculator, Brain } from 'lucide-react';
 
 interface SettingsProps {
   onClose?: () => void;
@@ -17,6 +19,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onDataChanged }) =>
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(voiceManager.getSettings());
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [aiStatus, setAiStatus] = useState<{ available: boolean; model?: string; error?: string } | null>(null);
+  const [skills, setSkills] = useState<Skill[]>(SkillRegistry.getSkills());
   const [testingAi, setTestingAi] = useState(false);
   const [testingVoice, setTestingVoice] = useState(false);
 
@@ -34,7 +37,18 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onDataChanged }) =>
 
     // Check AI status
     checkAi();
+    setSkills(SkillRegistry.getSkills());
   }, []);
+
+  const handleToggleSkill = (skillId: string, enabled: boolean) => {
+    if (enabled) {
+      SkillRegistry.enableSkill(skillId);
+    } else {
+      SkillRegistry.disableSkill(skillId);
+    }
+    setSkills([...SkillRegistry.getSkills()]);
+    onDataChanged?.();
+  };
 
   const checkAi = async () => {
     setTestingAi(true);
@@ -388,6 +402,81 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onDataChanged }) =>
               <Volume2 className="w-4 h-4 text-sky-400 animate-pulse" />
               <span>{testingVoice ? 'Speaking Test Audio...' : 'Test Deep Voice Output'}</span>
             </button>
+          </div>
+        </div>
+
+        {/* Section: Skills Matrix */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-slate-300 font-semibold text-sm border-b border-slate-800/80 pb-1.5">
+            <Sliders className="w-4 h-4 text-emerald-400" />
+            <span>Skills Matrix & Capability Modules</span>
+          </div>
+
+          <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl space-y-3">
+            <div className="space-y-2.5">
+              {skills.map((skill) => {
+                const isEnabled = skill.enabled;
+                const permBadgeClass =
+                  skill.permission === 'SAFE'
+                    ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300'
+                    : skill.permission === 'READ'
+                    ? 'bg-sky-950/60 border-sky-700/60 text-sky-300'
+                    : skill.permission === 'WRITE'
+                    ? 'bg-amber-950/60 border-amber-700/60 text-amber-300'
+                    : 'bg-rose-950/60 border-rose-700/60 text-rose-300';
+
+                return (
+                  <div
+                    key={skill.id}
+                    className={`p-2.5 rounded-lg border transition-all ${
+                      isEnabled
+                        ? 'bg-slate-950/60 border-slate-800/80'
+                        : 'bg-slate-950/30 border-slate-900/60 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {skill.id === 'calculator' && <Calculator className="w-4 h-4 text-amber-400" />}
+                        {skill.id === 'memory' && <Brain className="w-4 h-4 text-sky-400" />}
+                        {skill.id === 'time' && <Clock className="w-4 h-4 text-purple-400" />}
+                        <span className="font-semibold text-slate-100 text-xs">{skill.name}</span>
+                        <span className="text-[10px] font-mono text-slate-500">v{skill.version}</span>
+                        <span className={`text-[9.5px] font-mono px-1.5 py-0.5 rounded border ${permBadgeClass}`}>
+                          {skill.permission}
+                        </span>
+                      </div>
+
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isEnabled}
+                          onChange={(e) => handleToggleSkill(skill.id, e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-8 h-4.5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{skill.description}</p>
+
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {skill.capabilities.slice(0, 4).map((cap) => (
+                        <span
+                          key={cap}
+                          className="px-1.5 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9.5px] font-mono"
+                        >
+                          #{cap}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="text-[10.5px] text-slate-500 pt-1 border-t border-slate-800/60 font-mono">
+              Controlled via Apollo Skill Registry & Router. Future extensions (PC Control, Web Grounding) deploy here.
+            </div>
           </div>
         </div>
 

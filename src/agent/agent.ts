@@ -1,7 +1,9 @@
 import { AgentLoop } from './loop';
 import { AgentContext, AgentResponse, ApolloState } from './types';
-import { SessionStorage, ChatMessage } from '../storage/sessions';
-import { ApolloMemory } from '../memory/memory';
+import { SessionStorage, ChatMessage, ToolCallRecord } from '../storage/sessions';
+import { SkillRouter } from '../../skills/router';
+import { SkillRegistry } from '../../skills/registry';
+import { generateId } from '../utils/helpers';
 import { logger } from '../utils/logger';
 
 export class ApolloAgent {
@@ -34,8 +36,8 @@ export class ApolloAgent {
   }
 
   /**
-   * Primary entry point for executing user commands/queries.
-   * Both text and voice routes converge here.
+   * Primary entry point for executing user commands and inquiries.
+   * Both text input and voice input converge here.
    */
   async processInput(params: {
     sessionId: string;
@@ -44,6 +46,7 @@ export class ApolloAgent {
     onToolActivity?: (toolCall: unknown) => void;
   }): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage; response: AgentResponse }> {
     const { sessionId, text, isVoice = false, onToolActivity } = params;
+    const startTime = Date.now();
 
     // 1. Record user message
     const userMessage = SessionStorage.addMessage(sessionId, {
@@ -52,36 +55,96 @@ export class ApolloAgent {
       isVoiceInput: isVoice,
     });
 
-    // 2. Fast Natural Memory Command Interceptor (Phase 2)
-    // Intercepts explicit "Remember...", "Forget...", "What do you remember about me?" for instant zero-latency processing
-    const memoryCommandResult = ApolloMemory.handleNaturalLanguageCommand(text);
-    if (memoryCommandResult.handled && memoryCommandResult.responseText) {
-      this.setState('THINKING');
-      await new Promise((resolve) => setTimeout(resolve, 80));
+    // 2. Skill Router Evaluation (Phase 3)
+    // Determines if a specialized skill can handle the request directly
+    const routeDecision = SkillRouter.route(text);
+
+    if (routeDecision && routeDecision.isDirectMatch) {
+      const { skill, extractedParams = {}, reason } = routeDecision;
+      logger.info('ApolloAgent', `Fast direct route to Skill "${skill.name}" (reason: ${reason})`);
+
+      // Check if skill is enabled in Skill Registry
+      if (!SkillRegistry.isSkillEnabled(skill.id)) {
+        this.setState('THINKING');
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        this.setState('IDLE');
+
+        const disabledResponse: AgentResponse = {
+          text: `I cannot complete that request because the ${skill.name} skill is currently disabled in system settings. Please re-enable it in Settings to perform this action.`,
+          toolCalls: [],
+          executionTimeMs: Date.now() - startTime,
+        };
+
+        const assistantMessage = SessionStorage.addMessage(sessionId, {
+          role: 'assistant',
+          content: disabledResponse.text,
+          toolCalls: [],
+        });
+
+        return {
+          userMessage,
+          assistantMessage,
+          response: disabledResponse,
+        };
+      }
+
+      // Display skill activity status in UI
+      const activityText = skill.activityLabel || `Using ${skill.name}...`;
+      this.setState('USING_TOOL', activityText);
+
+      const toolRecord: ToolCallRecord = {
+        id: generateId(),
+        name: skill.id,
+        args: extractedParams,
+        status: 'pending',
+      };
+      onToolActivity?.(toolRecord);
+
+      // Execute through Skill Registry
+      const execResult = await SkillRegistry.executeSkill(skill.id, extractedParams);
+      toolRecord.result = execResult.result;
+      toolRecord.status = execResult.error ? 'error' : 'completed';
+
       this.setState('IDLE');
 
-      const fastResponse: AgentResponse = {
-        text: memoryCommandResult.responseText,
-        toolCalls: [],
-        executionTimeMs: 80,
-        usedMemoriesCount: memoryCommandResult.memoryAction === 'recalled' ? 1 : 0,
+      let responseText = '';
+      if (execResult.error) {
+        responseText = `I couldn't complete that task because the ${skill.name} skill encountered an error: ${execResult.error}`;
+      } else if (execResult.result && typeof execResult.result === 'object') {
+        const resObj = execResult.result as Record<string, unknown>;
+        if (typeof resObj.summary === 'string' && resObj.summary) {
+          responseText = resObj.summary;
+        } else if (skill.id === 'calculator' && resObj.formatted) {
+          responseText = `The answer is ${resObj.formatted}.`;
+        } else {
+          responseText = 'Operation completed.';
+        }
+      } else {
+        responseText = String(execResult.result || 'Operation completed.');
+      }
+
+      const directResponse: AgentResponse = {
+        text: responseText,
+        toolCalls: [toolRecord],
+        executionTimeMs: Date.now() - startTime,
+        usedMemoriesCount: skill.id === 'memory' ? 1 : 0,
       };
 
       const assistantMessage = SessionStorage.addMessage(sessionId, {
         role: 'assistant',
-        content: fastResponse.text,
-        toolCalls: fastResponse.toolCalls,
-        usedMemoriesCount: fastResponse.usedMemoriesCount,
+        content: directResponse.text,
+        toolCalls: directResponse.toolCalls,
+        usedMemoriesCount: directResponse.usedMemoriesCount,
       });
 
       return {
         userMessage,
         assistantMessage,
-        response: fastResponse,
+        response: directResponse,
       };
     }
 
-    // 3. Prepare execution context
+    // 3. Prepare execution context for full Gemini Agent Loop
     const context: AgentContext = {
       sessionId,
       userQuery: text,
@@ -90,10 +153,10 @@ export class ApolloAgent {
       onToolActivity: (tc) => onToolActivity?.(tc),
     };
 
-    // 4. Run Agent Loop with Gemini & relevant memory injection
+    // 4. Run Agent Loop with Gemini, enabled Skills declarations & relevant memory injection
     const response = await AgentLoop.run(context);
 
-    // 5. Record assistant message with memory usage indicators
+    // 5. Record assistant message with memory usage and tool call indicators
     const assistantMessage = SessionStorage.addMessage(sessionId, {
       role: 'assistant',
       content: response.text,
@@ -109,3 +172,4 @@ export class ApolloAgent {
     };
   }
 }
+

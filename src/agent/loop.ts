@@ -73,8 +73,8 @@ export class AgentLoop {
               status: 'pending',
             };
 
-            const toolLabel = call.name.replace(/_/g, ' ');
-            context.onStateChange?.('USING_TOOL', `Using ${toolLabel}...`);
+            const toolLabel = ToolRegistry.getActivityLabel(call.name);
+            context.onStateChange?.('USING_TOOL', toolLabel);
             context.onToolActivity?.(toolRecord);
 
             // Execute the tool
