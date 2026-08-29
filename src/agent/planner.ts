@@ -1,20 +1,27 @@
 import { ModelMessage } from '../ai/types';
 import { SessionStorage, ChatMessage } from '../storage/sessions';
 import { ToolRegistry } from '../tools/registry';
+import { ApolloMemory } from '../memory/memory';
+import { MemoryItem } from '../memory/types';
 import { buildApolloSystemPrompt } from './prompt';
 
 export class AgentPlanner {
   /**
-   * Constructs the model message history including system prompt and tool declarations.
+   * Constructs the model message history including system prompt with query-relevant memory injection and tool declarations.
    */
   static prepareContext(sessionId: string, currentQuery: string): {
     messages: ModelMessage[];
     systemInstruction: string;
     tools: ReturnType<typeof ToolRegistry.getToolDeclarations>;
+    usedMemories: MemoryItem[];
+    usedMemoriesCount: number;
   } {
     const session = SessionStorage.getSession(sessionId);
     const history = session ? session.messages : [];
-    
+
+    // Retrieve relevant memories for the specific query
+    const memoryContext = ApolloMemory.buildMemoryContext(currentQuery, 5);
+
     // Take the last 12 messages for conversation context to keep prompt compact and fast
     const recentMessages = history.slice(-12);
 
@@ -33,13 +40,15 @@ export class AgentPlanner {
       });
     }
 
-    const systemInstruction = buildApolloSystemPrompt();
+    const systemInstruction = buildApolloSystemPrompt(memoryContext.contextText);
     const tools = ToolRegistry.getToolDeclarations();
 
     return {
       messages: modelMessages,
       systemInstruction,
       tools,
+      usedMemories: memoryContext.memories,
+      usedMemoriesCount: memoryContext.count,
     };
   }
 }

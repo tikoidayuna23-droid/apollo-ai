@@ -29,7 +29,13 @@ export class AgentLoop {
 
     context.onStateChange?.('THINKING');
 
-    const { messages: initialMessages, systemInstruction, tools } = AgentPlanner.prepareContext(
+    const {
+      messages: initialMessages,
+      systemInstruction,
+      tools,
+      usedMemories,
+      usedMemoriesCount,
+    } = AgentPlanner.prepareContext(
       context.sessionId,
       context.userQuery
     );
@@ -107,6 +113,8 @@ export class AgentLoop {
         text: finalText.trim(),
         toolCalls: recordedToolCalls,
         executionTimeMs: Date.now() - startTime,
+        usedMemoriesCount,
+        usedMemories: usedMemories.map((m) => ({ id: m.id, content: m.content, category: m.category })),
       };
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'An unexpected error occurred during processing.';

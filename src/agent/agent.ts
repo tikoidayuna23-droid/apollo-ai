@@ -1,6 +1,7 @@
 import { AgentLoop } from './loop';
 import { AgentContext, AgentResponse, ApolloState } from './types';
 import { SessionStorage, ChatMessage } from '../storage/sessions';
+import { ApolloMemory } from '../memory/memory';
 import { logger } from '../utils/logger';
 
 export class ApolloAgent {
@@ -51,7 +52,36 @@ export class ApolloAgent {
       isVoiceInput: isVoice,
     });
 
-    // 2. Prepare execution context
+    // 2. Fast Natural Memory Command Interceptor (Phase 2)
+    // Intercepts explicit "Remember...", "Forget...", "What do you remember about me?" for instant zero-latency processing
+    const memoryCommandResult = ApolloMemory.handleNaturalLanguageCommand(text);
+    if (memoryCommandResult.handled && memoryCommandResult.responseText) {
+      this.setState('THINKING');
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      this.setState('IDLE');
+
+      const fastResponse: AgentResponse = {
+        text: memoryCommandResult.responseText,
+        toolCalls: [],
+        executionTimeMs: 80,
+        usedMemoriesCount: memoryCommandResult.memoryAction === 'recalled' ? 1 : 0,
+      };
+
+      const assistantMessage = SessionStorage.addMessage(sessionId, {
+        role: 'assistant',
+        content: fastResponse.text,
+        toolCalls: fastResponse.toolCalls,
+        usedMemoriesCount: fastResponse.usedMemoriesCount,
+      });
+
+      return {
+        userMessage,
+        assistantMessage,
+        response: fastResponse,
+      };
+    }
+
+    // 3. Prepare execution context
     const context: AgentContext = {
       sessionId,
       userQuery: text,
@@ -60,14 +90,16 @@ export class ApolloAgent {
       onToolActivity: (tc) => onToolActivity?.(tc),
     };
 
-    // 3. Run Agent Loop
+    // 4. Run Agent Loop with Gemini & relevant memory injection
     const response = await AgentLoop.run(context);
 
-    // 4. Record assistant message
+    // 5. Record assistant message with memory usage indicators
     const assistantMessage = SessionStorage.addMessage(sessionId, {
       role: 'assistant',
       content: response.text,
       toolCalls: response.toolCalls,
+      usedMemoriesCount: response.usedMemoriesCount,
+      usedMemories: response.usedMemories,
     });
 
     return {

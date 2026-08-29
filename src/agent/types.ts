@@ -15,4 +15,6 @@ export interface AgentResponse {
   toolCalls: ToolCallRecord[];
   executionTimeMs: number;
   error?: string;
+  usedMemoriesCount?: number;
+  usedMemories?: Array<{ id: string; content: string; category: string }>;
 }

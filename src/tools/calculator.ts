@@ -1,15 +1,18 @@
 import { logger } from '../utils/logger';
 
+export interface ToolPropertySchema {
+  type: string;
+  description: string;
+  enum?: string[];
+  items?: { type: string };
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
   parameters: {
     type: string;
-    properties: Record<string, {
-      type: string;
-      description: string;
-      enum?: string[];
-    }>;
+    properties: Record<string, ToolPropertySchema>;
     required?: string[];
   };
   execute: (args: Record<string, unknown>) => Promise<{ result: unknown; error?: string }>;

@@ -1,15 +1,24 @@
 import { ToolDefinition, calculatorTool } from './calculator';
-import { saveMemoryTool, searchMemoryTool } from './memory';
+import {
+  saveMemoryTool,
+  searchMemoryTool,
+  deleteMemoryTool,
+  getUserProfileTool,
+  updateUserProfileTool,
+} from './memory';
 import { logger } from '../utils/logger';
 
 export class ToolRegistry {
   private static tools: Map<string, ToolDefinition> = new Map();
 
   static {
-    // Register Phase 1 core tools
+    // Register Phase 1 & 2 core tools
     this.registerTool(calculatorTool);
     this.registerTool(saveMemoryTool);
     this.registerTool(searchMemoryTool);
+    this.registerTool(deleteMemoryTool);
+    this.registerTool(getUserProfileTool);
+    this.registerTool(updateUserProfileTool);
   }
 
   static registerTool(tool: ToolDefinition): void {

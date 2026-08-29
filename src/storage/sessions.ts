@@ -17,6 +17,8 @@ export interface ChatMessage {
   timestamp: number;
   toolCalls?: ToolCallRecord[];
   isVoiceInput?: boolean;
+  usedMemoriesCount?: number;
+  usedMemories?: Array<{ id: string; content: string; category: string }>;
 }
 
 export interface ChatSession {
@@ -77,6 +79,8 @@ export class SessionStorage {
       content: message.content,
       toolCalls: message.toolCalls,
       isVoiceInput: message.isVoiceInput,
+      usedMemoriesCount: message.usedMemoriesCount,
+      usedMemories: message.usedMemories,
     };
 
     const session = this.getSession(sessionId);

@@ -2,7 +2,7 @@ import React from 'react';
 import { ChatMessage } from '../storage/sessions';
 import { ToolCall } from './ToolCall';
 import { formatTime } from '../utils/helpers';
-import { Mic, Volume2, Bot, User, Copy, Check } from 'lucide-react';
+import { Mic, Volume2, Bot, Copy, Check, Sparkles, Database } from 'lucide-react';
 import { VoiceManager } from '../voice/voice-manager';
 
 interface MessageProps {
@@ -41,6 +41,12 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
           <>
             <Bot className="w-3.5 h-3.5 text-sky-400" />
             <span className="text-sky-400 font-semibold">Apollo</span>
+            {message.usedMemoriesCount && message.usedMemoriesCount > 0 && (
+              <span className="flex items-center gap-1 px-1.5 py-0.2 rounded bg-emerald-950/80 border border-emerald-700/60 text-emerald-300 text-[10px]">
+                <Database className="w-2.5 h-2.5 text-emerald-400" />
+                <span>Memory used</span>
+              </span>
+            )}
             <span className="text-slate-600">•</span>
             <span className="text-slate-500">{formatTime(message.timestamp)}</span>
           </>
@@ -95,3 +101,4 @@ export const Message: React.FC<MessageProps> = ({ message }) => {
     </div>
   );
 };
+
