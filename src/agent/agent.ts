@@ -1,9 +1,8 @@
 import { AgentLoop } from './loop';
 import { AgentContext, AgentResponse, ApolloState } from './types';
 import { SessionStorage, ChatMessage, ToolCallRecord } from '../storage/sessions';
-import { SkillRouter } from '../../skills/router';
-import { SkillRegistry } from '../../skills/registry';
-import { generateId } from '../utils/helpers';
+import { TaskPlanner } from './orchestrator/task-planner';
+import { TaskOrchestrator } from './orchestrator/orchestrator';
 import { logger } from '../utils/logger';
 
 export class ApolloAgent {
@@ -43,91 +42,39 @@ export class ApolloAgent {
     sessionId: string;
     text: string;
     isVoice?: boolean;
-    onToolActivity?: (toolCall: unknown) => void;
+    onToolActivity?: (toolCall: ToolCallRecord) => void;
   }): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage; response: AgentResponse }> {
     const { sessionId, text, isVoice = false, onToolActivity } = params;
     const startTime = Date.now();
 
-    // 1. Record user message
+    // 1. Record user message in active session
     const userMessage = SessionStorage.addMessage(sessionId, {
       role: 'user',
       content: text,
       isVoiceInput: isVoice,
     });
 
-    // 2. Skill Router Evaluation (Phase 3)
-    // Determines if a specialized skill can handle the request directly
-    const routeDecision = SkillRouter.route(text);
+    // 2. Task Planner Layer (Phase 4 Orchestration)
+    // Evaluates the user query, context, and multi-skill dependencies
+    this.setState('THINKING', 'Planning task...');
+    const plan = TaskPlanner.plan(text, sessionId);
+    logger.info('ApolloAgent', `Generated Task Plan: "${plan.goal}" (steps: ${plan.steps.length}, requiresAgentLoop: ${Boolean(plan.requiresAgentLoop)})`);
 
-    if (routeDecision && routeDecision.isDirectMatch) {
-      const { skill, extractedParams = {}, reason } = routeDecision;
-      logger.info('ApolloAgent', `Fast direct route to Skill "${skill.name}" (reason: ${reason})`);
-
-      // Check if skill is enabled in Skill Registry
-      if (!SkillRegistry.isSkillEnabled(skill.id)) {
-        this.setState('THINKING');
-        await new Promise((resolve) => setTimeout(resolve, 80));
-        this.setState('IDLE');
-
-        const disabledResponse: AgentResponse = {
-          text: `I cannot complete that request because the ${skill.name} skill is currently disabled in system settings. Please re-enable it in Settings to perform this action.`,
-          toolCalls: [],
-          executionTimeMs: Date.now() - startTime,
-        };
-
-        const assistantMessage = SessionStorage.addMessage(sessionId, {
-          role: 'assistant',
-          content: disabledResponse.text,
-          toolCalls: [],
-        });
-
-        return {
-          userMessage,
-          assistantMessage,
-          response: disabledResponse,
-        };
-      }
-
-      // Display skill activity status in UI
-      const activityText = skill.activityLabel || `Using ${skill.name}...`;
-      this.setState('USING_TOOL', activityText);
-
-      const toolRecord: ToolCallRecord = {
-        id: generateId(),
-        name: skill.id,
-        args: extractedParams,
-        status: 'pending',
-      };
-      onToolActivity?.(toolRecord);
-
-      // Execute through Skill Registry
-      const execResult = await SkillRegistry.executeSkill(skill.id, extractedParams);
-      toolRecord.result = execResult.result;
-      toolRecord.status = execResult.error ? 'error' : 'completed';
+    // 3. If plan can be orchestrated directly via registered Skills or direct response
+    if (!plan.requiresAgentLoop) {
+      const execResult = await TaskOrchestrator.execute(plan, {
+        onStateChange: (st, detail) => this.setState(st, detail),
+        onToolActivity: (tc) => onToolActivity?.(tc),
+      });
 
       this.setState('IDLE');
 
-      let responseText = '';
-      if (execResult.error) {
-        responseText = `I couldn't complete that task because the ${skill.name} skill encountered an error: ${execResult.error}`;
-      } else if (execResult.result && typeof execResult.result === 'object') {
-        const resObj = execResult.result as Record<string, unknown>;
-        if (typeof resObj.summary === 'string' && resObj.summary) {
-          responseText = resObj.summary;
-        } else if (skill.id === 'calculator' && resObj.formatted) {
-          responseText = `The answer is ${resObj.formatted}.`;
-        } else {
-          responseText = 'Operation completed.';
-        }
-      } else {
-        responseText = String(execResult.result || 'Operation completed.');
-      }
-
       const directResponse: AgentResponse = {
-        text: responseText,
-        toolCalls: [toolRecord],
+        text: execResult.finalText,
+        toolCalls: execResult.toolCalls,
         executionTimeMs: Date.now() - startTime,
-        usedMemoriesCount: skill.id === 'memory' ? 1 : 0,
+        usedMemoriesCount: execResult.usedMemoriesCount || 0,
+        error: execResult.error,
       };
 
       const assistantMessage = SessionStorage.addMessage(sessionId, {
@@ -144,7 +91,7 @@ export class ApolloAgent {
       };
     }
 
-    // 3. Prepare execution context for full Gemini Agent Loop
+    // 4. Fallback to full Gemini Agent Loop for open-ended queries or complex reasoning
     const context: AgentContext = {
       sessionId,
       userQuery: text,
@@ -153,10 +100,8 @@ export class ApolloAgent {
       onToolActivity: (tc) => onToolActivity?.(tc),
     };
 
-    // 4. Run Agent Loop with Gemini, enabled Skills declarations & relevant memory injection
     const response = await AgentLoop.run(context);
 
-    // 5. Record assistant message with memory usage and tool call indicators
     const assistantMessage = SessionStorage.addMessage(sessionId, {
       role: 'assistant',
       content: response.text,
@@ -172,4 +117,5 @@ export class ApolloAgent {
     };
   }
 }
+
 

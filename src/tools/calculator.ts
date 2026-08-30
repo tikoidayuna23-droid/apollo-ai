@@ -24,8 +24,10 @@ export interface ToolDefinition {
 export function safeEvaluateMath(rawExpr: string): number {
   // Clean up and normalize words to symbols
   let expr = rawExpr
+    .trim()
+    .replace(/[.?!;]+$/, '')
     .toLowerCase()
-    .replace(/times|multiplied\s+by|x/gi, '*')
+    .replace(/times|multiplied\s+by|\bx\b/gi, '*')
     .replace(/divided\s+by|over/gi, '/')
     .replace(/plus/gi, '+')
     .replace(/minus/gi, '-')
@@ -33,11 +35,11 @@ export function safeEvaluateMath(rawExpr: string): number {
     .replace(/squared/gi, '**2')
     .replace(/cubed/gi, '**3')
     .replace(/,/g, '') // remove thousands separators
+    .replace(/(\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:of|\*)\s*(\d+(?:\.\d+)?)/gi, '(($1 / 100) * $2)')
+    .replace(/(\d+(?:\.\d+)?)\s*(?:%|percent)/gi, '($1 / 100)')
+    .replace(/\bof\b/gi, '*')
     .trim();
 
-  // Validate allowed characters: digits, operators, parens, math constants/functions, whitespace, dots
-  const validPattern = /^[0-9+\-*/().%^eE\sMath.sqrtcospianbrld]+$/;
-  
   // Custom recursive-descent parser for safe evaluation
   return parseExpression(expr);
 }

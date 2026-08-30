@@ -40,7 +40,7 @@ export const CalculatorSkill: Skill = {
     const mathPattern = /(?:what\s+is|calculate|compute|solve|how\s+much\s+is)?\s*([0-9\s.,+\-*/()^%x]|times|multiplied\s+by|divided\s+by|plus|minus|sqrt|sin|cos|tan|pi|pow)+\??$/i;
     
     // Check if query is explicitly asking a calculation
-    const hasMathKeywords = /\b(multiplied\s+by|divided\s+by|times|plus|minus|square\s+root\s+of|sqrt|calculate|compute)\b/i.test(text);
+    const hasMathKeywords = /\b(multiplied\s+by|divided\s+by|times|plus|minus|square\s+root\s+of|sqrt|calculate|compute|percent)\b/i.test(text) || text.includes('%');
     const hasDigitsAndOperators = /[0-9]+\s*[+\-*/^x%]\s*[0-9]+/.test(text);
 
     if (hasMathKeywords || hasDigitsAndOperators) {
@@ -53,7 +53,7 @@ export const CalculatorSkill: Skill = {
       if (cleanExpr.length > 0) {
         return {
           matched: true,
-          confidence: hasDigitsAndOperators ? 0.95 : 0.85,
+          confidence: hasDigitsAndOperators || text.includes('%') ? 0.95 : 0.85,
           suggestedAction: 'evaluate',
           extractedParams: { expression: cleanExpr },
           reason: 'Identified mathematical evaluation intent',
