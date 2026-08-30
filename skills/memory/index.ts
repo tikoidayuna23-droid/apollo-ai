@@ -16,6 +16,7 @@ export const MemorySkill: Skill = {
   version: '1.0.0',
   enabled: true,
   permission: 'WRITE',
+  category: 'INFORMATION',
   capabilities: [
     'store_memory',
     'search_memory',
@@ -24,6 +25,7 @@ export const MemorySkill: Skill = {
     'project_tracking',
     'natural_memory_commands',
   ],
+  supportedActions: ['save', 'search', 'delete', 'get_profile', 'update_profile', 'get_projects'],
   activityLabel: 'Accessing Memory...',
   parameters: {
     type: 'object',

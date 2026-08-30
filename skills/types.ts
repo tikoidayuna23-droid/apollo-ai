@@ -1,8 +1,17 @@
 /**
- * Apollo Skills Architecture - Type Definitions (Phase 3)
+ * Apollo Skills Architecture - Type Definitions (Phase 3 - 5)
  */
 
 export type SkillPermission = 'SAFE' | 'READ' | 'WRITE' | 'DESTRUCTIVE' | 'SYSTEM';
+
+export type SkillCategory =
+  | 'CALCULATION'
+  | 'TEXT'
+  | 'DATA'
+  | 'FILE'
+  | 'INFORMATION'
+  | 'PRODUCTIVITY'
+  | 'SYSTEM';
 
 export interface SkillPropertySchema {
   type: string;
@@ -31,7 +40,7 @@ export interface SkillMatchResult {
 }
 
 export interface Skill {
-  /** Unique skill identifier (e.g., 'calculator', 'memory', 'time') */
+  /** Unique skill identifier (e.g., 'calculator', 'text_intelligence', 'data_analysis', 'file_intelligence', 'memory', 'time') */
   id: string;
 
   /** Human-readable skill name */
@@ -49,11 +58,20 @@ export interface Skill {
   /** Security and safety permission tier */
   permission: SkillPermission;
 
+  /** Organizational capability category */
+  category: SkillCategory;
+
   /** List of functional capability tags */
   capabilities: string[];
 
+  /** List of explicitly supported sub-actions */
+  supportedActions?: string[];
+
   /** Parameter definition schema */
   parameters: SkillParameterSchema;
+
+  /** Output structure schema if applicable */
+  outputSchema?: Record<string, unknown>;
 
   /** Safe execution handler */
   execute: (params: Record<string, unknown>, context?: unknown) => Promise<SkillExecutionResult>;
@@ -64,3 +82,4 @@ export interface Skill {
   /** Status message to display in UI during execution (e.g., 'Using Calculator...') */
   activityLabel?: string;
 }
+

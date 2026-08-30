@@ -54,6 +54,33 @@ export class ResultAggregator {
       }
     }
 
+    // Pattern 4: Calculation + Text Explanation / Summary
+    if (aggType === 'calculation_and_explanation' && steps.length === 2) {
+      const res1 = stepResults.get(steps[0].id) as { value?: number; formatted?: string } | undefined;
+      const res2 = stepResults.get(steps[1].id) as { output?: string; summary?: string } | undefined;
+      const baseFormatted = plan.metadata?.baseFormatted || String(plan.metadata?.base || '');
+      const pctFormatted = plan.metadata?.pct || '';
+
+      if (res1 && res1.formatted) {
+        const explanation = res2?.output || res2?.summary || `This represents ${pctFormatted}% of the total base amount (${baseFormatted}).`;
+        return `${pctFormatted}% of ${baseFormatted} is ${res1.formatted}.\n\nExplanation: ${explanation}`;
+      }
+    }
+
+    // Pattern 5: Data Top N + Average calculation
+    if (aggType === 'data_top_n_and_average' && steps.length === 2) {
+      const res1 = stepResults.get(steps[0].id) as { summary?: string } | undefined;
+      const res2 = stepResults.get(steps[1].id) as { formatted?: string; summary?: string } | undefined;
+      const col = (plan.metadata?.column as string) || 'Sales';
+      const n = plan.metadata?.n || 3;
+
+      if (res1 && res2) {
+        const topSummary = res1.summary || `Top ${n} items by ${col}`;
+        const avgSummary = res2.summary || `The average ${col} of these top ${n} items is ${res2.formatted}.`;
+        return `${topSummary}\n\nAverage: ${avgSummary}`;
+      }
+    }
+
     // Single step handling
     if (steps.length === 1) {
       const singleStep = steps[0];

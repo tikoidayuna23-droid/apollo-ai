@@ -1,6 +1,19 @@
 import React, { useState } from 'react';
 import { ToolCallRecord } from '../storage/sessions';
-import { Calculator, Database, Search, Clock, ChevronDown, ChevronUp, Check, AlertCircle, Sparkles } from 'lucide-react';
+import {
+  Calculator,
+  Database,
+  Search,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  AlertCircle,
+  Sparkles,
+  FileText,
+  BarChart2,
+  FileCode,
+} from 'lucide-react';
 
 interface ToolCallProps {
   toolCall: ToolCallRecord;
@@ -21,6 +34,12 @@ export const ToolCall: React.FC<ToolCallProps> = ({ toolCall }) => {
         return <Search className="w-3.5 h-3.5 text-sky-400" />;
       case 'memory':
         return <Database className="w-3.5 h-3.5 text-cyan-400" />;
+      case 'text_intelligence':
+        return <FileText className="w-3.5 h-3.5 text-blue-400" />;
+      case 'data_analysis':
+        return <BarChart2 className="w-3.5 h-3.5 text-emerald-400" />;
+      case 'file_intelligence':
+        return <FileCode className="w-3.5 h-3.5 text-violet-400" />;
       default:
         return <Sparkles className="w-3.5 h-3.5 text-indigo-400" />;
     }
@@ -41,6 +60,19 @@ export const ToolCall: React.FC<ToolCallProps> = ({ toolCall }) => {
     }
     if (toolCall.name === 'memory') {
       return `Memory: ${toolCall.args?.action || 'Access'}`;
+    }
+    if (toolCall.name === 'text_intelligence') {
+      const action = toolCall.args?.action || 'Process';
+      return `Text: ${String(action).replace(/_/g, ' ')}`;
+    }
+    if (toolCall.name === 'data_analysis') {
+      const action = toolCall.args?.action || 'Analysis';
+      const col = toolCall.args?.column ? ` (${toolCall.args.column})` : '';
+      return `Data: ${String(action).replace(/_/g, ' ')}${col}`;
+    }
+    if (toolCall.name === 'file_intelligence') {
+      const fn = toolCall.args?.filename ? ` "${toolCall.args.filename}"` : '';
+      return `File: ${toolCall.args?.action || 'Inspect'}${fn}`;
     }
     return toolCall.name.replace(/_/g, ' ');
   };

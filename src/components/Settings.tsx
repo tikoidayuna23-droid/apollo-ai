@@ -7,7 +7,29 @@ import { ApolloMemory } from '../memory/memory';
 import { SkillRegistry } from '../../skills/registry';
 import { Skill } from '../../skills/types';
 import { db } from '../storage/database';
-import { Settings as SettingsIcon, Volume2, Cpu, Sliders, Trash2, X, RefreshCw, Check, AlertCircle, Bot, Sparkles, Mic, ShieldCheck, ShieldAlert, Clock, Calculator, Brain } from 'lucide-react';
+import {
+  Settings as SettingsIcon,
+  Volume2,
+  Cpu,
+  Sliders,
+  Trash2,
+  X,
+  RefreshCw,
+  Check,
+  AlertCircle,
+  Bot,
+  Sparkles,
+  Mic,
+  ShieldCheck,
+  ShieldAlert,
+  Clock,
+  Calculator,
+  Brain,
+  FileText,
+  BarChart2,
+  FileCode,
+  Layers,
+} from 'lucide-react';
 
 interface SettingsProps {
   onClose?: () => void;
@@ -20,6 +42,7 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onDataChanged }) =>
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [aiStatus, setAiStatus] = useState<{ available: boolean; model?: string; error?: string } | null>(null);
   const [skills, setSkills] = useState<Skill[]>(SkillRegistry.getSkills());
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [testingAi, setTestingAi] = useState(false);
   const [testingVoice, setTestingVoice] = useState(false);
 
@@ -48,6 +71,25 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onDataChanged }) =>
     }
     setSkills([...SkillRegistry.getSkills()]);
     onDataChanged?.();
+  };
+
+  const getSkillIcon = (skillId: string) => {
+    switch (skillId) {
+      case 'calculator':
+        return <Calculator className="w-4 h-4 text-amber-400" />;
+      case 'memory':
+        return <Brain className="w-4 h-4 text-sky-400" />;
+      case 'time':
+        return <Clock className="w-4 h-4 text-purple-400" />;
+      case 'text_intelligence':
+        return <FileText className="w-4 h-4 text-blue-400" />;
+      case 'data_analysis':
+        return <BarChart2 className="w-4 h-4 text-emerald-400" />;
+      case 'file_intelligence':
+        return <FileCode className="w-4 h-4 text-violet-400" />;
+      default:
+        return <Layers className="w-4 h-4 text-indigo-400" />;
+    }
   };
 
   const checkAi = async () => {
@@ -407,75 +449,124 @@ export const Settings: React.FC<SettingsProps> = ({ onClose, onDataChanged }) =>
 
         {/* Section: Skills Matrix */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-slate-300 font-semibold text-sm border-b border-slate-800/80 pb-1.5">
-            <Sliders className="w-4 h-4 text-emerald-400" />
-            <span>Skills Matrix & Capability Modules</span>
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
+            <div className="flex items-center gap-2 text-slate-300 font-semibold text-sm">
+              <Sliders className="w-4 h-4 text-emerald-400" />
+              <span>Skills & Tool Ecosystem</span>
+            </div>
+            <span className="text-[11px] font-mono text-slate-500">
+              {skills.filter((s) => s.enabled).length}/{skills.length} Enabled
+            </span>
           </div>
 
           <div className="p-3 bg-slate-900/80 border border-slate-800 rounded-xl space-y-3">
-            <div className="space-y-2.5">
-              {skills.map((skill) => {
-                const isEnabled = skill.enabled;
-                const permBadgeClass =
-                  skill.permission === 'SAFE'
-                    ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300'
-                    : skill.permission === 'READ'
-                    ? 'bg-sky-950/60 border-sky-700/60 text-sky-300'
-                    : skill.permission === 'WRITE'
-                    ? 'bg-amber-950/60 border-amber-700/60 text-amber-300'
-                    : 'bg-rose-950/60 border-rose-700/60 text-rose-300';
-
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap gap-1 pb-1">
+              {['ALL', 'CALCULATION', 'TEXT', 'DATA', 'FILE', 'INFORMATION'].map((cat) => {
+                const count = cat === 'ALL' ? skills.length : skills.filter((s) => s.category === cat).length;
+                const isSelected = selectedCategory === cat;
                 return (
-                  <div
-                    key={skill.id}
-                    className={`p-2.5 rounded-lg border transition-all ${
-                      isEnabled
-                        ? 'bg-slate-950/60 border-slate-800/80'
-                        : 'bg-slate-950/30 border-slate-900/60 opacity-60'
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-2 py-1 rounded text-[10.5px] font-mono transition-all flex items-center gap-1 ${
+                      isSelected
+                        ? 'bg-sky-600 text-white shadow-sm'
+                        : 'bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {skill.id === 'calculator' && <Calculator className="w-4 h-4 text-amber-400" />}
-                        {skill.id === 'memory' && <Brain className="w-4 h-4 text-sky-400" />}
-                        {skill.id === 'time' && <Clock className="w-4 h-4 text-purple-400" />}
-                        <span className="font-semibold text-slate-100 text-xs">{skill.name}</span>
-                        <span className="text-[10px] font-mono text-slate-500">v{skill.version}</span>
-                        <span className={`text-[9.5px] font-mono px-1.5 py-0.5 rounded border ${permBadgeClass}`}>
-                          {skill.permission}
-                        </span>
-                      </div>
-
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={isEnabled}
-                          onChange={(e) => handleToggleSkill(skill.id, e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-8 h-4.5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-600"></div>
-                      </label>
-                    </div>
-
-                    <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{skill.description}</p>
-
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {skill.capabilities.slice(0, 4).map((cap) => (
-                        <span
-                          key={cap}
-                          className="px-1.5 py-0.5 bg-slate-900 border border-slate-800 text-slate-400 rounded text-[9.5px] font-mono"
-                        >
-                          #{cap}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+                    <span>{cat === 'ALL' ? 'All Tools' : cat.charAt(0) + cat.slice(1).toLowerCase()}</span>
+                    <span className={`px-1 py-0.2 rounded text-[9px] ${isSelected ? 'bg-sky-800' : 'bg-slate-800 text-slate-400'}`}>
+                      {count}
+                    </span>
+                  </button>
                 );
               })}
             </div>
 
+            <div className="space-y-2.5">
+              {skills
+                .filter((s) => selectedCategory === 'ALL' || s.category === selectedCategory)
+                .map((skill) => {
+                  const isEnabled = skill.enabled;
+                  const permBadgeClass =
+                    skill.permission === 'SAFE'
+                      ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300'
+                      : skill.permission === 'READ'
+                      ? 'bg-sky-950/60 border-sky-700/60 text-sky-300'
+                      : skill.permission === 'WRITE'
+                      ? 'bg-amber-950/60 border-amber-700/60 text-amber-300'
+                      : 'bg-rose-950/60 border-rose-700/60 text-rose-300';
+
+                  return (
+                    <div
+                      key={skill.id}
+                      className={`p-2.5 rounded-lg border transition-all ${
+                        isEnabled
+                          ? 'bg-slate-950/60 border-slate-800/80'
+                          : 'bg-slate-950/30 border-slate-900/60 opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {getSkillIcon(skill.id)}
+                          <span className="font-semibold text-slate-100 text-xs">{skill.name}</span>
+                          <span className="text-[10px] font-mono text-slate-500">v{skill.version}</span>
+                          <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400">
+                            {skill.category || 'INFORMATION'}
+                          </span>
+                          <span className={`text-[9.5px] font-mono px-1.5 py-0.5 rounded border ${permBadgeClass}`}>
+                            {skill.permission}
+                          </span>
+                        </div>
+
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={(e) => handleToggleSkill(skill.id, e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-8 h-4.5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+
+                      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{skill.description}</p>
+
+                      {skill.supportedActions && skill.supportedActions.length > 0 && (
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <span className="text-[9.5px] text-slate-500 font-mono">Actions:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {skill.supportedActions.map((act) => (
+                              <span
+                                key={act}
+                                className="px-1.5 py-0.2 bg-slate-900 border border-slate-800/80 text-sky-400 rounded text-[9px] font-mono"
+                              >
+                                {act}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {skill.capabilities.slice(0, 4).map((cap) => (
+                          <span
+                            key={cap}
+                            className="px-1.5 py-0.5 bg-slate-900/60 border border-slate-800 text-slate-400 rounded text-[9.5px] font-mono"
+                          >
+                            #{cap}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
             <div className="text-[10.5px] text-slate-500 pt-1 border-t border-slate-800/60 font-mono">
-              Controlled via Apollo Skill Registry & Router. Future extensions (PC Control, Web Grounding) deploy here.
+              Controlled via Apollo Skill Registry, Task Planner & Orchestrator. Safe execution limits enforced.
             </div>
           </div>
         </div>

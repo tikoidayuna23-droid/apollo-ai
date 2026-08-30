@@ -13,6 +13,7 @@ export const CalculatorSkill: Skill = {
   version: '1.0.0',
   enabled: true,
   permission: 'SAFE',
+  category: 'CALCULATION',
   capabilities: [
     'arithmetic',
     'scientific_math',
@@ -21,6 +22,7 @@ export const CalculatorSkill: Skill = {
     'percentages',
     'safe_evaluation',
   ],
+  supportedActions: ['evaluate', 'percentage'],
   activityLabel: 'Using Calculator...',
   parameters: {
     type: 'object',

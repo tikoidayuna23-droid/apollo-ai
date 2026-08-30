@@ -1,5 +1,8 @@
-import { Skill, SkillExecutionResult } from './types';
+import { Skill, SkillCategory, SkillExecutionResult } from './types';
 import { CalculatorSkill } from './calculator';
+import { TextIntelligenceSkill } from './text';
+import { DataAnalysisSkill } from './data';
+import { FileIntelligenceSkill } from './file';
 import { MemorySkill } from './memory';
 import { TimeSkill } from './time';
 import { db } from '../src/storage/database';
@@ -26,8 +29,11 @@ export class SkillRegistry {
       this.enabledStates = {};
     }
 
-    // Register Phase 3 Core Built-in Skills
+    // Register Phase 3 - 5 Core Built-in Tools & Skills
     this.registerSkill(CalculatorSkill);
+    this.registerSkill(TextIntelligenceSkill);
+    this.registerSkill(DataAnalysisSkill);
+    this.registerSkill(FileIntelligenceSkill);
     this.registerSkill(MemorySkill);
     this.registerSkill(TimeSkill);
 
@@ -49,7 +55,7 @@ export class SkillRegistry {
     };
 
     this.skills.set(skill.id, registeredSkill);
-    logger.info('SkillRegistry', `Registered skill "${skill.name}" [${skill.id}] (v${skill.version}, enabled=${isEnabled})`);
+    logger.info('SkillRegistry', `Registered skill "${skill.name}" [${skill.id}] (v${skill.version}, category=${skill.category}, enabled=${isEnabled})`);
   }
 
   /**
@@ -77,6 +83,26 @@ export class SkillRegistry {
    */
   static getSkills(): Skill[] {
     return Array.from(this.skills.values());
+  }
+
+  /**
+   * Retrieve skills filtered by capability category.
+   */
+  static getSkillsByCategory(category: SkillCategory): Skill[] {
+    return this.getSkills().filter((s) => s.category === category);
+  }
+
+  /**
+   * Retrieve all distinct categories currently present in registered skills.
+   */
+  static getCategories(): SkillCategory[] {
+    const set = new Set<SkillCategory>();
+    for (const skill of this.skills.values()) {
+      if (skill.category) {
+        set.add(skill.category);
+      }
+    }
+    return Array.from(set);
   }
 
   /**

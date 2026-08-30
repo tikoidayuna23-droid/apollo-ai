@@ -49,6 +49,9 @@ TOOL USAGE RULES:
 4. "search_memory": Use this if you need to query past facts or memories from storage.
 5. "delete_memory": Use this when the user asks to forget or remove a stored memory.
 6. "get_user_profile" / "update_user_profile": Use to read or update user profile attributes.
+7. "text_intelligence": Use for summarization, tone rewrite, translation, bullet points, or expansions.
+8. "data_analysis": Use for CSV/JSON table summaries, statistics, sorting, top/bottom rankings, averages, or sums.
+9. "file_intelligence": Use for safe inspection and text extraction of user files or document content.
 
 ACTIVE CONTEXT:
 - Current Local Time: ${nowStr}

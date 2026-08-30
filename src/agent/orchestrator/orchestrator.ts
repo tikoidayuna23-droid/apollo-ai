@@ -190,7 +190,7 @@ export class TaskOrchestrator {
   }
 
   /**
-   * Safely replaces placeholders ($PREV, $STEP_ID.val) in input with structured results of previous steps.
+   * Safely replaces placeholders ($PREV, $PREV_DATA, $STEP_ID.val, $STEP_ID.data) in input with structured results of previous steps.
    */
   private static resolveStepInput(
     rawInput: Record<string, unknown>,
@@ -200,21 +200,49 @@ export class TaskOrchestrator {
     const resolved: Record<string, unknown> = {};
 
     let prevValue = '';
+    let prevData: unknown = null;
+
     if (prevResult && typeof prevResult === 'object') {
       const resObj = prevResult as Record<string, unknown>;
       if (resObj.value !== undefined) {
         prevValue = String(resObj.value);
       } else if (resObj.formatted !== undefined) {
         prevValue = String(resObj.formatted).replace(/,/g, '');
+      } else if (typeof resObj.output === 'string') {
+        prevValue = resObj.output;
+      } else if (typeof resObj.summary === 'string') {
+        prevValue = resObj.summary;
       } else {
         prevValue = JSON.stringify(resObj);
+      }
+
+      if (resObj.data !== undefined) {
+        prevData = resObj.data;
+      } else if (resObj.rawData !== undefined) {
+        prevData = resObj.rawData;
       }
     } else if (prevResult !== null && prevResult !== undefined) {
       prevValue = String(prevResult);
     }
 
     for (const [key, value] of Object.entries(rawInput)) {
+      if (value === '$PREV_DATA' && prevData) {
+        resolved[key] = prevData;
+        continue;
+      }
+
       if (typeof value === 'string') {
+        // Direct object reference match (e.g., "$step_1.data")
+        const stepDataMatch = value.match(/^\$([a-zA-Z0-9_]+)\.data$/);
+        if (stepDataMatch) {
+          const targetStepId = stepDataMatch[1];
+          const targetRes = allResults.get(targetStepId) as Record<string, unknown> | undefined;
+          if (targetRes && targetRes.data !== undefined) {
+            resolved[key] = targetRes.data;
+            continue;
+          }
+        }
+
         let strVal = value.replace(/\$PREV_FORMATTED/g, prevValue).replace(/\$PREV/g, prevValue);
 
         // Replace any $step_1.value or $step_1 syntax
@@ -222,11 +250,13 @@ export class TaskOrchestrator {
           let stepVal = '';
           if (res && typeof res === 'object') {
             const obj = res as Record<string, unknown>;
-            stepVal = obj.value !== undefined ? String(obj.value) : String(obj.formatted || '');
+            stepVal = obj.value !== undefined ? String(obj.value) : String(obj.formatted || obj.output || obj.summary || '');
           } else {
             stepVal = String(res || '');
           }
           strVal = strVal.replace(new RegExp(`\\$${stepId}\\.value`, 'g'), stepVal);
+          strVal = strVal.replace(new RegExp(`\\$${stepId}\\.output`, 'g'), stepVal);
+          strVal = strVal.replace(new RegExp(`\\$${stepId}\\.summary`, 'g'), stepVal);
           strVal = strVal.replace(new RegExp(`\\$${stepId}`, 'g'), stepVal);
         });
 

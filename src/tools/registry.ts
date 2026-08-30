@@ -8,6 +8,9 @@ import {
 } from './memory';
 import { timeTool } from './time';
 import { SkillRegistry } from '../../skills/registry';
+import { TextIntelligenceSkill } from '../../skills/text';
+import { DataAnalysisSkill } from '../../skills/data';
+import { FileIntelligenceSkill } from '../../skills/file';
 import { logger } from '../utils/logger';
 
 // Map tools to their corresponding Skill ID
@@ -19,13 +22,44 @@ const TOOL_TO_SKILL_MAP: Record<string, string> = {
   delete_memory: 'memory',
   get_user_profile: 'memory',
   update_user_profile: 'memory',
+  text_intelligence: 'text_intelligence',
+  data_analysis: 'data_analysis',
+  file_intelligence: 'file_intelligence',
+};
+
+// Skill-backed tool definitions
+const textIntelligenceTool: ToolDefinition = {
+  name: 'text_intelligence',
+  description: TextIntelligenceSkill.description,
+  parameters: TextIntelligenceSkill.parameters as ToolDefinition['parameters'],
+  execute: async (args) => {
+    return SkillRegistry.executeSkill('text_intelligence', args);
+  },
+};
+
+const dataAnalysisTool: ToolDefinition = {
+  name: 'data_analysis',
+  description: DataAnalysisSkill.description,
+  parameters: DataAnalysisSkill.parameters as ToolDefinition['parameters'],
+  execute: async (args) => {
+    return SkillRegistry.executeSkill('data_analysis', args);
+  },
+};
+
+const fileIntelligenceTool: ToolDefinition = {
+  name: 'file_intelligence',
+  description: FileIntelligenceSkill.description,
+  parameters: FileIntelligenceSkill.parameters as ToolDefinition['parameters'],
+  execute: async (args) => {
+    return SkillRegistry.executeSkill('file_intelligence', args);
+  },
 };
 
 export class ToolRegistry {
   private static tools: Map<string, ToolDefinition> = new Map();
 
   static {
-    // Register Phase 1, 2, and 3 tools
+    // Register Phase 1 - 5 tools
     this.registerTool(calculatorTool);
     this.registerTool(timeTool);
     this.registerTool(saveMemoryTool);
@@ -33,6 +67,9 @@ export class ToolRegistry {
     this.registerTool(deleteMemoryTool);
     this.registerTool(getUserProfileTool);
     this.registerTool(updateUserProfileTool);
+    this.registerTool(textIntelligenceTool);
+    this.registerTool(dataAnalysisTool);
+    this.registerTool(fileIntelligenceTool);
   }
 
   static registerTool(tool: ToolDefinition): void {

@@ -33,7 +33,141 @@ export class TaskPlanner {
       };
     }
 
-    // 2. Multi-Step Math Pattern A: Percentage calculation + subtraction / remaining amount
+    // 2. Dynamic Tool Discovery (What tools do you have?)
+    if (
+      /\b(what\s+tools\s+(?:do\s+you\s+have|are\s+available)|list\s+(?:all\s+)?(?:your\s+)?tools|what\s+are\s+your\s+tools|show\s+(?:me\s+)?(?:all\s+)?tools|what\s+skills\s+(?:do\s+you\s+have|are\s+available)|what\s+can\s+you\s+do|what\s+are\s+your\s+capabilities)\b/i.test(
+        query
+      )
+    ) {
+      const skills = SkillRegistry.getSkills();
+      const categoryLabels: Record<string, string> = {
+        CALCULATION: 'Calculation & Math',
+        TEXT: 'Text Intelligence',
+        DATA: 'Data Analysis',
+        FILE: 'File Intelligence',
+        INFORMATION: 'Information & Neural Memory',
+        PRODUCTIVITY: 'Productivity',
+        SYSTEM: 'System & Diagnostics',
+      };
+
+      const grouped: Record<string, string[]> = {};
+      for (const s of skills) {
+        const cat = s.category || 'INFORMATION';
+        if (!grouped[cat]) grouped[cat] = [];
+        const statusStr = s.enabled ? 'Enabled' : 'Disabled';
+        grouped[cat].push(`• ${s.name} (v${s.version}, ${statusStr}): ${s.description}`);
+      }
+
+      const sections = Object.entries(grouped).map(([cat, items]) => {
+        const label = categoryLabels[cat] || cat;
+        return `${label}:\n${items.join('\n')}`;
+      });
+
+      const discoveryText = `I have the following registered tools and capabilities:\n\n${sections.join('\n\n')}`;
+
+      return {
+        goal: 'Dynamic tool discovery and capabilities inventory',
+        steps: [],
+        isDirectAnswer: true,
+        directAnswerText: discoveryText,
+      };
+    }
+
+    // 3. Multi-Tool Chain: Math Calculation + Text Explanation / Summary
+    // e.g. "Calculate 15% of 8500 and explain the result."
+    // e.g. "Calculate 15% of 8500 and summarize the result."
+    const mathExplainMatch = query.match(
+      /(?:calculate|compute|find|what\s+is)?\s*(\d+(?:\.\d+)?)\s*%\s*(?:of|\*)\s*(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:and|,)?\s*(?:then\s+)?(?:explain\s+(?:the\s+result|this|it)|summarize\s+(?:the\s+result|this|it)|give\s+(?:me\s+)?an\s+explanation)/i
+    );
+
+    if (mathExplainMatch) {
+      const pct = mathExplainMatch[1];
+      const baseRaw = mathExplainMatch[2].replace(/,/g, '');
+      const baseNum = parseFloat(baseRaw);
+      const baseFormatted = baseNum.toLocaleString('en-US');
+
+      const step1: TaskStep = {
+        id: 'step_1',
+        skillId: 'calculator',
+        action: 'evaluate',
+        description: `Calculate ${pct}% of ${baseFormatted}`,
+        input: { expression: `${pct}% of ${baseRaw}` },
+        dependsOn: [],
+        status: 'pending',
+      };
+
+      const step2: TaskStep = {
+        id: 'step_2',
+        skillId: 'text_intelligence',
+        action: 'expand',
+        description: 'Explain and contextualize calculation result',
+        input: {
+          action: 'expand',
+          text: `${pct}% of ${baseFormatted} is $PREV. This calculation represents the proportional share of ${pct} parts per hundred from the base amount of ${baseFormatted}.`,
+        },
+        dependsOn: ['step_1'],
+        status: 'pending',
+      };
+
+      return {
+        goal: `Calculate ${pct}% of ${baseFormatted} and explain the result`,
+        steps: [step1, step2],
+        metadata: {
+          aggregationType: 'calculation_and_explanation',
+          pct,
+          base: baseNum,
+          baseFormatted,
+        },
+      };
+    }
+
+    // 4. Multi-Tool Chain: Data Top N + Average / Sum Calculation
+    // e.g. "Find the top 3 products and calculate their average sales."
+    // with CSV data in query
+    const hasInlineCsv = /\b[A-Za-z0-9_-]+,[A-Za-z0-9_-]+\b[\r\n]+[A-Za-z0-9_-]+,[0-9.]+/i.test(raw);
+    const dataChainMatch = query.match(
+      /(?:find|get|give\s+me)?\s*(?:the\s+)?top\s+(\d+)\s+(?:items|products|rows|entries)?(?:\s+by\s+([A-Za-z0-9_]+))?\s*(?:and|,)?\s*(?:then\s+)?(?:calculate\s+(?:their|the)\s+average(?:\s+sales)?|find\s+their\s+average|average\s+them)/i
+    );
+
+    if (hasInlineCsv && dataChainMatch) {
+      const n = parseInt(dataChainMatch[1], 10) || 3;
+      const col = dataChainMatch[2] || 'Sales';
+      const lines = raw.split(/[\r\n]+/);
+      const csvLines = lines.filter((l) => l.includes(','));
+      const csvData = csvLines.join('\n');
+
+      const step1: TaskStep = {
+        id: 'step_1',
+        skillId: 'data_analysis',
+        action: 'top_n',
+        description: `Find top ${n} entries by ${col}`,
+        input: { action: 'top_n', data: csvData, n, column: col },
+        dependsOn: [],
+        status: 'pending',
+      };
+
+      const step2: TaskStep = {
+        id: 'step_2',
+        skillId: 'data_analysis',
+        action: 'average',
+        description: `Calculate average ${col} of top ${n}`,
+        input: { action: 'average', data: '$PREV_DATA', column: col },
+        dependsOn: ['step_1'],
+        status: 'pending',
+      };
+
+      return {
+        goal: `Find top ${n} by ${col} and calculate their average`,
+        steps: [step1, step2],
+        metadata: {
+          aggregationType: 'data_top_n_and_average',
+          n,
+          column: col,
+        },
+      };
+    }
+
+    // 5. Multi-Step Math Pattern A: Percentage calculation + subtraction / remaining amount
     // e.g. "Calculate 15% of 8500 and subtract it from 8500."
     // e.g. "Calculate 15% of 8500 and then tell me the remaining amount."
     // e.g. "Calculate 15% of 8500, then subtract that from 8500."

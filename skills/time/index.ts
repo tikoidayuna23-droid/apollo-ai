@@ -13,6 +13,7 @@ export const TimeSkill: Skill = {
   version: '1.0.0',
   enabled: true,
   permission: 'SAFE',
+  category: 'INFORMATION',
   capabilities: [
     'current_time',
     'current_date',
@@ -21,6 +22,7 @@ export const TimeSkill: Skill = {
     'iso_timestamp',
     'formatted_chrono',
   ],
+  supportedActions: ['all', 'time_only', 'date_only', 'day_of_week', 'timezone'],
   activityLabel: 'Checking local time...',
   parameters: {
     type: 'object',
